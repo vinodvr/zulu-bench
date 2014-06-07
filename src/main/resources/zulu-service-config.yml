@@ -1,0 +1,22 @@
+http:
+    port: 8080
+    adminPort: 8081
+    minThreads: 20
+    maxThreads: 20
+    connectorType: blocking
+    maxIdleTime: 60s
+    acceptorThreads: 1
+    acceptQueueSize: -1
+    reuseAddress: true
+    requestLog:
+        console:
+          enabled: false
+
+logging:
+    level: INFO
+
+
+redisHostName: localhost
+redisPort: 6379
+maxRedisConnections: 200
+
