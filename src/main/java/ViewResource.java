@@ -1,3 +1,4 @@
+import com.google.common.base.Optional;
 import com.google.common.collect.Lists;
 import com.yammer.metrics.annotation.Timed;
 import org.slf4j.Logger;
@@ -69,7 +70,8 @@ public class ViewResource {
     @GET
     @Timed
     public ViewResponse getViews(@QueryParam("entityIds") String commaSeparatedEntityIds,
-                                 @QueryParam("viewNames") String commaSeparatedViewNames) {
+                                 @QueryParam("viewNames") String commaSeparatedViewNames,
+                                 @QueryParam("addToGC") Optional<Boolean> addToGC) {
         try {
             String[] entityIds = commaSeparatedEntityIds.split(",");
             String[] viewNames = commaSeparatedViewNames.split(",");
@@ -85,8 +87,12 @@ public class ViewResource {
                         if (response == null) {
                             missingViews.add(new EntityViewNameTuple(entityId, viewName));
                         } else {
-                            //TODO: remove System.millis below..
-                            views.add(new View(response + System.currentTimeMillis(), entityId, viewName));
+                            views.add(new View(response, entityId, viewName));
+                            if (addToGC.or(false)) {
+                                String gcStr = response + System.currentTimeMillis();
+                                //noinspection ResultOfMethodCallIgnored
+                                gcStr.length();
+                            }
                         }
 
                     }
