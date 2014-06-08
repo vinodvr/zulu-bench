@@ -78,12 +78,23 @@ public class ViewResource {
             boolean broken = false;
             Jedis resource = jedis.getPool().getResource();
             try {
-                List<View> views = Lists.newArrayList();
-                List<EntityViewNameTuple> missingViews = Lists.newArrayList();
+                String[] keys = new String[entityIds.length * viewNames.length];
+                int i = 0;
                 for (String entityId : entityIds) {
                     for (String viewName : viewNames) {
                         String key = generateRedisKey(entityId, viewName);
-                        String response = resource.get(key);
+                        keys[i++] = key;
+                    }
+                }
+
+                List<String> multiGetResponse = resource.mget(keys);
+
+                List<View> views = Lists.newArrayList();
+                List<EntityViewNameTuple> missingViews = Lists.newArrayList();
+                int j = 0;
+                for (String entityId : entityIds) {
+                    for (String viewName : viewNames) {
+                        String response = multiGetResponse.get(j++);
                         if (response == null) {
                             missingViews.add(new EntityViewNameTuple(entityId, viewName));
                         } else {
@@ -94,7 +105,6 @@ public class ViewResource {
                                 gcStr.length();
                             }
                         }
-
                     }
                 }
                 return new ViewResponse(views, missingViews);
