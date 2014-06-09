@@ -125,7 +125,7 @@ public class ViewResource {
         }
     }
 
-    private String generateRedisKey(String entityId, String viewName) {
+    public static String generateRedisKey(String entityId, String viewName) {
         return "_ZV_" + entityId + "_" + viewName;
     }
 }

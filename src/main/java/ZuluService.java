@@ -24,6 +24,7 @@ public class ZuluService extends Service<ZuluServiceConfig> {
                 conf.getMaxRedisConnections());
         environment.manage(jedisManaged);
         environment.addResource(new ViewResource(jedisManaged));
+        environment.addServlet(new LargeViewServlet(jedisManaged), "/largeViews");
         environment.addHealthCheck(new ZuluServiceHealthCheck());
     }
 }
