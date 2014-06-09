@@ -34,6 +34,8 @@ public class LargeViewServlet extends HttpServlet {
             }
         }
 
+        outputStream.flush();
+
     }
 
     private boolean writeResponse(String redisKey, ServletOutputStream outputStream) throws IOException {
