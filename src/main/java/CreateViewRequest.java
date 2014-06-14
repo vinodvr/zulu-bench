@@ -15,7 +15,17 @@ public class CreateViewRequest {
     @NotNull
     private int counter;
     @NotNull
-    private long viewSizeInBytes;
+    private int viewSizeInBytes;
+    @NotNull
+    private boolean compress = true;
+
+    public boolean isCompress() {
+        return compress;
+    }
+
+    public void setCompress(boolean compress) {
+        this.compress = compress;
+    }
 
     public void setViewName(String viewName) {
         this.viewName = viewName;
@@ -29,7 +39,7 @@ public class CreateViewRequest {
         this.counter = counter;
     }
 
-    public void setViewSizeInBytes(long viewSizeInBytes) {
+    public void setViewSizeInBytes(int viewSizeInBytes) {
         this.viewSizeInBytes = viewSizeInBytes;
     }
 
@@ -45,7 +55,7 @@ public class CreateViewRequest {
         return counter;
     }
 
-    public long getViewSizeInBytes() {
+    public int getViewSizeInBytes() {
         return viewSizeInBytes;
     }
 

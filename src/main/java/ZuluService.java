@@ -1,6 +1,9 @@
 import com.yammer.dropwizard.Service;
 import com.yammer.dropwizard.config.Bootstrap;
 import com.yammer.dropwizard.config.Environment;
+import org.apache.commons.io.IOUtils;
+
+import java.io.InputStream;
 
 /**
  * To change this template use File | Settings | File Templates.
@@ -22,8 +25,10 @@ public class ZuluService extends Service<ZuluServiceConfig> {
                 conf.getRedisHostName(),
                 conf.getRedisPort(),
                 conf.getMaxRedisConnections());
+        InputStream resourceAsStream = getClass().getClassLoader().getResourceAsStream("default-view.json");
+        String defaultViewJson = IOUtils.toString(resourceAsStream, "UTF-8");
         environment.manage(jedisManaged);
-        environment.addResource(new ViewResource(jedisManaged));
+        environment.addResource(new ViewResource(jedisManaged, defaultViewJson));
         environment.addServlet(new LargeViewServlet(jedisManaged), "/largeViews");
         environment.addHealthCheck(new ZuluServiceHealthCheck());
     }
