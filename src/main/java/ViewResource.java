@@ -2,19 +2,17 @@ import com.google.common.base.Optional;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
 import com.yammer.metrics.annotation.Timed;
-import org.apache.commons.io.IOUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.xerial.snappy.Snappy;
 import redis.clients.jedis.Jedis;
 import redis.clients.jedis.exceptions.JedisConnectionException;
 
 import javax.ws.rs.*;
 import javax.ws.rs.core.MediaType;
-import java.io.*;
+import java.io.IOException;
 import java.util.List;
 import java.util.concurrent.ConcurrentMap;
-import java.util.zip.GZIPInputStream;
-import java.util.zip.GZIPOutputStream;
 
 /**
  * To change this template use File | Settings | File Templates.
@@ -94,8 +92,7 @@ public class ViewResource {
     }
 
     private byte[] compress(String str) throws IOException {
-        int inpSize = str.getBytes().length;
-        InputStream sis = new ByteArrayInputStream(str.getBytes("UTF-8"));
+         /*InputStream sis = new ByteArrayInputStream(str.getBytes("UTF-8"));
         ByteArrayOutputStream os = new ByteArrayOutputStream();
         GZIPOutputStream gos = new GZIPOutputStream(os);
         try {
@@ -106,14 +103,20 @@ public class ViewResource {
             IOUtils.closeQuietly(sis);
         }
         byte[] bytes = os.toByteArray();
-        int outputSize = bytes.length;
+        int outputSize = bytes.length;*/
+        byte[] bytes = str.getBytes("UTF-8");
+        int inpSize = bytes.length;
+        byte[] compress = Snappy.compress(bytes);
+        int outputSize = compress.length;
         logger.info("Compressed from {} to {}, compression ratio {}", inpSize, outputSize, inpSize/outputSize);
-        return bytes;
+        return compress;
     }
 
 
     private String decompress(byte[] compressedBytes) throws IOException {
-        InputStream sis = new ByteArrayInputStream(compressedBytes);
+        byte[] uncompress = Snappy.uncompress(compressedBytes);
+        return new String(uncompress, "UTF-8");
+        /*InputStream sis = new ByteArrayInputStream(compressedBytes);
         GZIPInputStream gis = new GZIPInputStream(sis);
         StringWriter sw = new StringWriter();
         try {
@@ -123,7 +126,7 @@ public class ViewResource {
             IOUtils.closeQuietly(sw);
             IOUtils.closeQuietly(gis);
             IOUtils.closeQuietly(sis);
-        }
+        }*/
     }
 
 
