@@ -21,6 +21,14 @@ public class ZuluServiceConfig extends Configuration {
     @JsonProperty
     private Integer maxRedisConnections;
 
+    @NotNull
+    @JsonProperty
+    private String esClusterName;
+
+    @NotNull
+    @JsonProperty
+    private String esClusterUnicastHosts;
+
 
     public String getRedisHostName() {
         return redisHostName;
@@ -32,5 +40,13 @@ public class ZuluServiceConfig extends Configuration {
 
     public int getMaxRedisConnections() {
         return maxRedisConnections;
+    }
+
+    public String getEsClusterName() {
+        return esClusterName;
+    }
+
+    public String getEsClusterUnicastHosts() {
+        return esClusterUnicastHosts;
     }
 }

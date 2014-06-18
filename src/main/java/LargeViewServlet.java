@@ -35,7 +35,7 @@ public class LargeViewServlet extends HttpServlet {
 
         for (String entityId : entityIds) {
             for (String viewName: viewNames) {
-                String redisKey = ViewResource.generateRedisKey(entityId, viewName);
+                String redisKey = ViewResource.generateId(entityId, viewName);
                 writeResponse(redisKey, outputStream, decompress);
             }
         }

@@ -1,3 +1,4 @@
+import com.fasterxml.jackson.databind.ObjectMapper;
 import com.yammer.dropwizard.Service;
 import com.yammer.dropwizard.config.Bootstrap;
 import com.yammer.dropwizard.config.Environment;
@@ -25,10 +26,14 @@ public class ZuluService extends Service<ZuluServiceConfig> {
                 conf.getRedisHostName(),
                 conf.getRedisPort(),
                 conf.getMaxRedisConnections());
+        ESManaged esManaged = new ESManaged(conf.getEsClusterName(), conf.getEsClusterUnicastHosts());
+        ObjectMapper objectMapper = new ObjectMapper();
+
         InputStream resourceAsStream = getClass().getClassLoader().getResourceAsStream("default-view.json");
         String defaultViewJson = IOUtils.toString(resourceAsStream, "UTF-8");
         environment.manage(jedisManaged);
-        environment.addResource(new ViewResource(jedisManaged, defaultViewJson));
+        environment.manage(esManaged);
+        environment.addResource(new ViewResource(jedisManaged, esManaged, defaultViewJson, objectMapper));
         environment.addServlet(new LargeViewServlet(jedisManaged), "/largeViews");
         environment.addHealthCheck(new ZuluServiceHealthCheck());
     }

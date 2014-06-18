@@ -19,4 +19,6 @@ logging:
 redisHostName: localhost
 redisPort: 6379
 maxRedisConnections: 200
+esClusterName: vinod-es-11
+esClusterUnicastHosts: localhost
 
