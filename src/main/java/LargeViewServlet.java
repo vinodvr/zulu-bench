@@ -1,5 +1,5 @@
 import org.apache.commons.io.IOUtils;
-import redis.clients.jedis.Jedis;
+import redis.clients.jedis.ShardedJedis;
 import redis.clients.jedis.exceptions.JedisConnectionException;
 
 import javax.servlet.ServletException;
@@ -46,7 +46,7 @@ public class LargeViewServlet extends HttpServlet {
 
     private void writeResponse(String redisKey, ServletOutputStream outputStream, boolean decompress) throws IOException {
         boolean broken = false;
-        Jedis resource = jedis.getPool().getResource();
+        ShardedJedis resource = jedis.getPool().getResource();
         try {
             outputStream.print(redisKey + ":");
             byte[] result = resource.get(redisKey.getBytes("UTF-8"));

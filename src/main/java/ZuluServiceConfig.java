@@ -15,10 +15,6 @@ public class ZuluServiceConfig extends Configuration {
 
     @NotNull
     @JsonProperty
-    private Integer redisPort;
-
-    @NotNull
-    @JsonProperty
     private Integer maxRedisConnections;
 
     @NotNull
@@ -32,10 +28,6 @@ public class ZuluServiceConfig extends Configuration {
 
     public String getRedisHostName() {
         return redisHostName;
-    }
-
-    public int getRedisPort() {
-        return redisPort;
     }
 
     public int getMaxRedisConnections() {

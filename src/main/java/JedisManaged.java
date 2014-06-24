@@ -1,41 +1,49 @@
 import com.yammer.dropwizard.lifecycle.Managed;
-import redis.clients.jedis.Jedis;
-import redis.clients.jedis.JedisPool;
-import redis.clients.jedis.JedisPoolConfig;
-import redis.clients.util.Pool;
+import org.apache.commons.pool2.impl.GenericObjectPoolConfig;
+import redis.clients.jedis.JedisShardInfo;
+import redis.clients.jedis.ShardedJedisPool;
+
+import java.util.ArrayList;
+import java.util.List;
 
 /**
  * To change this template use File | Settings | File Templates.
  */
 public class JedisManaged implements Managed {
 
-    private final String redisHost;
-    private final int redisPort;
+    private final String[] redisHostList;
     private final int maxConnections;
-    private Pool<Jedis> pool;
+    private ShardedJedisPool pool;
 
-    public JedisManaged(String redisHost, int redisPort, int maxConnections) {
-
-        this.redisHost = redisHost;
-        this.redisPort = redisPort;
+    public JedisManaged(String redisHostList, int maxConnections) {
+        this.redisHostList = redisHostList.split(",");
         this.maxConnections = maxConnections;
     }
 
     @Override
     public void start() throws Exception {
-        JedisPoolConfig poolConfig = new JedisPoolConfig();
+        GenericObjectPoolConfig poolConfig = new GenericObjectPoolConfig();
         poolConfig.setMaxTotal(maxConnections);
         poolConfig.setMaxIdle(maxConnections);
+        poolConfig.setMinIdle(-1);
         poolConfig.setTestOnBorrow(true);
-        pool = new JedisPool(poolConfig, redisHost, redisPort);
+
+        List<JedisShardInfo> shards = new ArrayList<JedisShardInfo>();
+        for (String redisHost: redisHostList) {
+            String[] split = redisHost.split(":");
+            JedisShardInfo si = new JedisShardInfo(split[0], Integer.valueOf(split[1]));
+            shards.add(si);
+        }
+        pool = new ShardedJedisPool(poolConfig, shards);
     }
+
 
     @Override
     public void stop() throws Exception {
         pool.destroy();
     }
 
-    public Pool<Jedis> getPool() {
+    public ShardedJedisPool getPool() {
         return pool;
     }
 }

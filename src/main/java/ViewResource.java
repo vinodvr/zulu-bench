@@ -1,6 +1,8 @@
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.google.common.base.Optional;
+import com.google.common.collect.ArrayListMultimap;
 import com.google.common.collect.Lists;
+import com.google.common.collect.Multimap;
 import com.yammer.metrics.annotation.Timed;
 import org.elasticsearch.action.get.GetResponse;
 import org.elasticsearch.action.get.MultiGetItemResponse;
@@ -9,14 +11,17 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.xerial.snappy.Snappy;
 import redis.clients.jedis.Jedis;
+import redis.clients.jedis.ShardedJedis;
 import redis.clients.jedis.exceptions.JedisConnectionException;
 
 import javax.ws.rs.*;
 import javax.ws.rs.core.MediaType;
 import java.io.IOException;
 import java.io.UnsupportedEncodingException;
+import java.util.Collection;
 import java.util.Date;
 import java.util.List;
+import java.util.Map;
 
 /**
  * To change this template use File | Settings | File Templates.
@@ -82,7 +87,7 @@ public class ViewResource {
 
     private void setInRedis(String id, byte[] cvJson) throws UnsupportedEncodingException {
         boolean broken = false;
-        Jedis resource = jedis.getPool().getResource();
+        ShardedJedis resource = jedis.getPool().getResource();
         try {
             resource.set(id.getBytes("UTF-8"), cvJson);
         } catch (JedisConnectionException e) {
@@ -193,9 +198,40 @@ public class ViewResource {
         List<View> views = Lists.newArrayList();
         List<EntityViewNameTuple> missingViews = Lists.newArrayList();
         boolean broken = false;
-        Jedis resource = jedis.getPool().getResource();
+        ShardedJedis resource = jedis.getPool().getResource();
         try {
-            byte[][] keys = new byte[entityIds.length * viewNames.length][];
+            Multimap<Jedis, String> shardToKeysMap = ArrayListMultimap.create();
+            for (String entityId : entityIds) {
+                for (String viewName : viewNames) {
+                    String key = generateId(entityId, viewName);
+                    Jedis shard = resource.getShard(key);
+                    shardToKeysMap.put(shard, key);
+                }
+            }
+
+            for (Map.Entry<Jedis, Collection<String>> entry : shardToKeysMap.asMap().entrySet()) {
+                Jedis jedis = entry.getKey();
+                Collection<String> keys = entry.getValue();
+                List<String> responses = jedis.mget(keys.toArray(new String[keys.size()]));
+
+                int i = 0;
+                for (String key : keys) {
+                    String entityId = extractId(key);
+                    String viewName = extractViewName(key);
+                    String keyResponse = responses.get(i++);
+                    if (keyResponse == null) {
+                        missingViews.add(new EntityViewNameTuple(entityId, viewName));
+                    } else {
+                        ComputedView cv = objectMapper.readValue(keyResponse, ComputedView.class);
+                        byte[] viewAsBytes = cv.getView();
+                        String view = handleCompression(decompress, viewAsBytes);
+                        views.add(new View(view, entityId, viewName));
+                        handleGC(addToGC, view);
+                    }
+                }
+            }
+
+            /*byte[][] keys = new byte[entityIds.length * viewNames.length][];
             int i = 0;
             for (String entityId : entityIds) {
                 for (String viewName : viewNames) {
@@ -220,7 +256,7 @@ public class ViewResource {
                         handleGC(addToGC, view);
                     }
                 }
-            }
+            }*/
         } catch (JedisConnectionException e) {
             broken = true;
             throw new RuntimeException(e);
@@ -233,6 +269,7 @@ public class ViewResource {
         }
         return new ViewResponse(views, missingViews);
     }
+
 
     private void convertToViewObj(Optional<Boolean> addToGC, Optional<Boolean> decompress, List<View> views, GetResponse getResponse) throws IOException {
         ComputedView cv = objectMapper.readValue(getResponse.getSourceAsBytes(), ComputedView.class);
@@ -269,4 +306,13 @@ public class ViewResource {
     public static String generateId(String entityId, String viewName) {
         return "_ZV_" + entityId + "_" + viewName;
     }
+
+    private String extractId(String key) {
+        return key.substring(4, key.lastIndexOf("_"));
+    }
+
+    private String extractViewName(String key) {
+        return key.substring(key.lastIndexOf("_") + 1, key.length());
+    }
+
 }

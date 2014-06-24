@@ -24,7 +24,6 @@ public class ZuluService extends Service<ZuluServiceConfig> {
     public void run(ZuluServiceConfig conf, Environment environment) throws Exception {
         JedisManaged jedisManaged = new JedisManaged(
                 conf.getRedisHostName(),
-                conf.getRedisPort(),
                 conf.getMaxRedisConnections());
         ESManaged esManaged = new ESManaged(conf.getEsClusterName(), conf.getEsClusterUnicastHosts());
         ObjectMapper objectMapper = new ObjectMapper();
