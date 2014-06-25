@@ -22,6 +22,10 @@ import java.util.Collection;
 import java.util.Date;
 import java.util.List;
 import java.util.Map;
+import java.util.concurrent.Callable;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
+import java.util.concurrent.Future;
 
 /**
  * To change this template use File | Settings | File Templates.
@@ -36,6 +40,8 @@ public class ViewResource {
     private final ESManaged es;
     private final String defaultViewJson;
     private final ObjectMapper objectMapper;
+    private static ExecutorService executorService = Executors.newFixedThreadPool(60);
+
 
     public ViewResource(JedisManaged jedis, ESManaged es, String defaultViewJson, ObjectMapper objectMapper) {
         this.jedis = jedis;
@@ -193,10 +199,15 @@ public class ViewResource {
     }
 
 
-    private ViewResponse fetchFromRedis(Optional<Boolean> addToGC, Optional<Boolean> decompress, String[] entityIds, String[] viewNames)
-            throws IOException {
+    class CallableResult {
         List<View> views = Lists.newArrayList();
         List<EntityViewNameTuple> missingViews = Lists.newArrayList();
+    }
+
+    private ViewResponse fetchFromRedis(final Optional<Boolean> addToGC, final Optional<Boolean> decompress, String[] entityIds, String[] viewNames)
+            throws IOException {
+        final List<View> views = Lists.newArrayList();
+        final List<EntityViewNameTuple> missingViews = Lists.newArrayList();
         boolean broken = false;
         ShardedJedis resource = jedis.getPool().getResource();
         try {
@@ -209,56 +220,52 @@ public class ViewResource {
                 }
             }
 
-            for (Map.Entry<Jedis, Collection<String>> entry : shardToKeysMap.asMap().entrySet()) {
-                Jedis jedis = entry.getKey();
-                Collection<String> keys = entry.getValue();
-                List<String> responses = jedis.mget(keys.toArray(new String[keys.size()]));
+            List<Callable<CallableResult>> tasks = Lists.newArrayList();
+            for (final Map.Entry<Jedis, Collection<String>> entry : shardToKeysMap.asMap().entrySet()) {
+                tasks.add(new Callable<CallableResult>() {
+                    @Override
+                    public CallableResult call() throws Exception {
+                        CallableResult result = new CallableResult();
+                        Jedis jedis = entry.getKey();
+                        Collection<String> keys = entry.getValue();
+                        List<String> responses = jedis.mget(keys.toArray(new String[keys.size()]));
 
-                int i = 0;
-                for (String key : keys) {
-                    String entityId = extractId(key);
-                    String viewName = extractViewName(key);
-                    String keyResponse = responses.get(i++);
-                    if (keyResponse == null) {
-                        missingViews.add(new EntityViewNameTuple(entityId, viewName));
-                    } else {
-                        ComputedView cv = objectMapper.readValue(keyResponse, ComputedView.class);
-                        byte[] viewAsBytes = cv.getView();
-                        String view = handleCompression(decompress, viewAsBytes);
-                        views.add(new View(view, entityId, viewName));
-                        handleGC(addToGC, view);
+                        int i = 0;
+                        for (String key : keys) {
+                            String entityId = extractId(key);
+                            String viewName = extractViewName(key);
+                            String keyResponse = responses.get(i++);
+                            if (keyResponse == null) {
+                                result.missingViews.add(new EntityViewNameTuple(entityId, viewName));
+                            } else {
+                                ComputedView cv = objectMapper.readValue(keyResponse, ComputedView.class);
+                                byte[] viewAsBytes = cv.getView();
+                                String view = handleCompression(decompress, viewAsBytes);
+                                result.views.add(new View(view, entityId, viewName));
+                                handleGC(addToGC, view);
+                            }
+                        }
+                        return result;
                     }
-                }
+                });
             }
 
-            /*byte[][] keys = new byte[entityIds.length * viewNames.length][];
-            int i = 0;
-            for (String entityId : entityIds) {
-                for (String viewName : viewNames) {
-                    String key = generateId(entityId, viewName);
-                    keys[i++] = key.getBytes("UTF-8");
+            try {
+                List<Future<CallableResult>> futures = executorService.invokeAll(tasks);
+                for (Future<CallableResult> future: futures) {
+                    CallableResult callableResult = future.get();
+                    views.addAll(callableResult.views);
+                    missingViews.addAll(callableResult.missingViews);
                 }
+            } catch (InterruptedException e) {
+                throw new RuntimeException(e);
             }
-
-            //fetch the views
-            List<byte[]> multiGetResponse = resource.mget(keys);
-            int j = 0;
-            for (String entityId : entityIds) {
-                for (String viewName : viewNames) {
-                    byte[] jsonBytes = multiGetResponse.get(j++);
-                    if (jsonBytes == null) {
-                        missingViews.add(new EntityViewNameTuple(entityId, viewName));
-                    } else {
-                        ComputedView cv = objectMapper.readValue(jsonBytes, ComputedView.class);
-                        byte[] viewAsBytes = cv.getView();
-                        String view = handleCompression(decompress, viewAsBytes);
-                        views.add(new View(view, entityId, viewName));
-                        handleGC(addToGC, view);
-                    }
-                }
-            }*/
         } catch (JedisConnectionException e) {
+            logger.error("Exception in getViews: ", e);
             broken = true;
+            throw new RuntimeException(e);
+        } catch (Exception e) {
+            logger.error("Exception in getViews: ", e);
             throw new RuntimeException(e);
         } finally {
             if (broken) {
