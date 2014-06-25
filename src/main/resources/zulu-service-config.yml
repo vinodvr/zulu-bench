@@ -20,4 +20,4 @@ redisHostName: localhost:6379,localhost:6380
 maxRedisConnections: 200
 esClusterName: vinod-es-11
 esClusterUnicastHosts: localhost
-
+executorPoolSize: 60

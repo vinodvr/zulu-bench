@@ -26,6 +26,11 @@ public class ZuluServiceConfig extends Configuration {
     private String esClusterUnicastHosts;
 
 
+    @NotNull
+    @JsonProperty
+    private Integer executorPoolSize;
+
+
     public String getRedisHostName() {
         return redisHostName;
     }
@@ -41,4 +46,9 @@ public class ZuluServiceConfig extends Configuration {
     public String getEsClusterUnicastHosts() {
         return esClusterUnicastHosts;
     }
+
+    public Integer getExecutorPoolSize() {
+            return executorPoolSize;
+        }
+
 }

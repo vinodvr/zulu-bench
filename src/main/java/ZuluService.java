@@ -32,7 +32,7 @@ public class ZuluService extends Service<ZuluServiceConfig> {
         String defaultViewJson = IOUtils.toString(resourceAsStream, "UTF-8");
         environment.manage(jedisManaged);
         environment.manage(esManaged);
-        environment.addResource(new ViewResource(jedisManaged, esManaged, defaultViewJson, objectMapper));
+        environment.addResource(new ViewResource(jedisManaged, esManaged, defaultViewJson, objectMapper,conf.getExecutorPoolSize()));
         environment.addServlet(new LargeViewServlet(jedisManaged), "/largeViews");
         environment.addHealthCheck(new ZuluServiceHealthCheck());
     }

@@ -40,14 +40,16 @@ public class ViewResource {
     private final ESManaged es;
     private final String defaultViewJson;
     private final ObjectMapper objectMapper;
-    private static ExecutorService executorService = Executors.newFixedThreadPool(60);
+    private final ExecutorService executorService;
 
 
-    public ViewResource(JedisManaged jedis, ESManaged es, String defaultViewJson, ObjectMapper objectMapper) {
+    public ViewResource(JedisManaged jedis, ESManaged es, String defaultViewJson, ObjectMapper objectMapper, Integer executorPoolSize) {
         this.jedis = jedis;
         this.es = es;
         this.defaultViewJson = defaultViewJson;
         this.objectMapper = objectMapper;
+        this.executorService = Executors.newFixedThreadPool(executorPoolSize);
+
     }
 
     @POST
